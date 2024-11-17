@@ -1,18 +1,19 @@
 import numpy as np
-import torch
-
-from myutils import *
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
+import torch
 from matplotlib import pyplot as plt
+from myutils import *
+
 
 def load_data(args):
-    if args.data == 'gdsc':
+    if args.data == "gdsc":
         return _load_gdsc(args)
-    elif args.data == 'ccle':
+    elif args.data == "ccle":
         return _load_ccle(args)
     else:
         raise NotImplementedError
+
 
 def _load_gdsc(args):
 
@@ -32,7 +33,7 @@ def _load_gdsc(args):
     drug_feature = np.array(drug_feature, dtype=np.float32)
 
     # 加载细胞系-基因特征矩阵
-    exprs= pd.read_csv(data_dir + "gene_feature.csv", index_col=0, header=0)
+    exprs = pd.read_csv(data_dir + "gene_feature.csv", index_col=0, header=0)
     exprs = np.array(exprs, dtype=np.float32)
 
     # 加载null_mask
@@ -41,13 +42,14 @@ def _load_gdsc(args):
 
     return res_ic50, res, drug_feature, exprs, null_mask, pos_num, args
 
+
 def _load_ccle(args):
     data_dir = "./HRLCDR/CCLE/Data/"
 
     # 加载细胞系-药物IC50反应矩阵
     res_ic50 = pd.read_csv(data_dir + "cell_drug.csv", index_col=0, header=0)
     res_ic50 = np.array(res_ic50, dtype=np.float32)
-    #res_ic50 = np.array(torch_z_normalized(torch.tensor(res_ic50), dim=1))
+    # res_ic50 = np.array(torch_z_normalized(torch.tensor(res_ic50), dim=1))
 
     # 加载细胞系-药物矩阵
     res = pd.read_csv(data_dir + "cell_drug_binary.csv", index_col=0, header=0)
@@ -64,4 +66,4 @@ def _load_ccle(args):
 
     # 加载null_mask
     null_mask = np.zeros(res.shape, dtype=np.float32)
-    return res_ic50 ,res, drug_feature, exprs, null_mask, pos_num, args
+    return res_ic50, res, drug_feature, exprs, null_mask, pos_num, args
