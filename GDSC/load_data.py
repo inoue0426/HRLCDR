@@ -16,7 +16,7 @@ def load_data(args):
 
 def _load_gdsc(args):
 
-    data_dir = "./HRLCDR/GDSC/Data/"
+    data_dir = "Data/"
 
     # 加载细胞系-药物IC50反应矩阵
     res_ic50 = pd.read_csv(data_dir + "cell_drug.csv", index_col=0, header=0)
@@ -33,8 +33,8 @@ def _load_gdsc(args):
 
     # 加载细胞系-基因特征矩阵
     exprs= pd.read_csv(data_dir + "gene_feature.csv", index_col=0, header=0)
-    exprs = np.array(exprs, dtype=np.float32)   
-    
+    exprs = np.array(exprs, dtype=np.float32)
+
     # 加载null_mask
     null_mask = pd.read_csv(data_dir + "null_mask.csv", index_col=0, header=0)
     null_mask = np.array(null_mask, dtype=np.float32)
@@ -65,5 +65,3 @@ def _load_ccle(args):
     # 加载null_mask
     null_mask = np.zeros(res.shape, dtype=np.float32)
     return res_ic50 ,res, drug_feature, exprs, null_mask, pos_num, args
-
-

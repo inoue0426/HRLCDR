@@ -35,7 +35,7 @@ class LoadFeature(nn.Module, ABC):
         cell_feat = self.cell_feat
         drug_feat = self.drug_feat
         return cell_feat, drug_feat
-    
+
 
 
 class GDecoder(nn.Module, ABC):
@@ -47,7 +47,7 @@ class GDecoder(nn.Module, ABC):
         Corr = torch_corr_x_y(cell_emb, drug_emb)
         output = scale_sigmoid(Corr, alpha=self.gamma)
         return output
-    
+
 
 class GDecoder_regression(nn.Module, ABC):
     def __init__(self,gamma):
@@ -59,9 +59,9 @@ class GDecoder_regression(nn.Module, ABC):
         return output
 
 class Hyper_Agg(nn.Module):
-    def __init__(self, adj_mat,adj_mat_T,self_c,self_d, cell_hyper,drug_hyper,alp,bet):
+    def __init__(self, adj_mat,adj_mat_T,self_c,self_d, cell_hyper,drug_hyper,alp,bet, device="cpu"):
         super(Hyper_Agg, self).__init__()
-        
+
         self.adj_mat = adj_mat
         self.adj_mat_T = adj_mat_T
         self.lp_c = self_c
@@ -69,32 +69,32 @@ class Hyper_Agg(nn.Module):
 
         self.cell_hyper = cell_hyper
         self.drug_hyper = drug_hyper
-        
-        A4H = torch.diag(torch.pow(torch.sum(drug_hyper, dim=1)+1, -1)).to("cuda:0")
-        B4H = torch.diag(torch.pow(torch.sum(cell_hyper, dim=1)+1, -1)).to("cuda:0")
-        self.chaotuHC = torch.eye(962).to("cuda:0") - torch.mm(torch.mm(B4H, cell_hyper), B4H)
-        self.chaotuHD = torch.eye(228).to("cuda:0") - torch.mm(torch.mm(A4H, drug_hyper), A4H)
+
+        A4H = torch.diag(torch.pow(torch.sum(drug_hyper, dim=1)+1, -1)).to(device)
+        B4H = torch.diag(torch.pow(torch.sum(cell_hyper, dim=1)+1, -1)).to(device)
+        self.chaotuHC = torch.eye(962).to(device) - torch.mm(torch.mm(B4H, cell_hyper), B4H)
+        self.chaotuHD = torch.eye(228).to(device) - torch.mm(torch.mm(A4H, drug_hyper), A4H)
 
         self.in_dim = 2040
         self.out_dim = 2040
 
-        self.agg_cs = nn.Linear(self.in_dim ,self.out_dim ,bias=True)   
-        self.agg_c1 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)    
-   
+        self.agg_cs = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
+        self.agg_c1 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
+
         self.agg_ds = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
         self.agg_d1 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
 
-        
+
         self.agg_b4 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
         self.agg_a4 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
         self.agg_b42 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
-        self.agg_a42 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)     
+        self.agg_a42 = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
         self.agg_b4H = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
         self.agg_a4H = nn.Linear(self.in_dim ,self.out_dim ,bias=True)
-                
+
         self.al = alp
-        self.bt = bet       
-        
+        self.bt = bet
+
 
     def forward(self,exp,fig):
         alp = self.al
@@ -107,9 +107,9 @@ class Hyper_Agg(nn.Module):
         cell1_1 = self.agg_c1(torch.mm(self.adj_mat, fig))
         cell1 = alp*torch.mul(cell1_1, exp)+bet*cell1_1
 
-        
+
         drugs_1 = self.agg_ds(torch.mm(self.lp_d, fig))
-        drugs_r = torch.mul(drugs_1, fig) 
+        drugs_r = torch.mul(drugs_1, fig)
         drugs = bet*drugs_1 + alp*drugs_r
 
         drug1_1 = self.agg_d1(torch.mm(self.adj_mat_T, exp))
@@ -132,7 +132,7 @@ class Hyper_Agg(nn.Module):
         cellagg = fun.relu(cells + cell1 + cell6 + cell42)
         drugagg = fun.relu(drugs + drug1 + drug6 + drug42)
 
-        
+
 
         return cellagg, drugagg
 
@@ -141,14 +141,14 @@ class hrlcdr(nn.Module, ABC):
     def __init__(self, adj_mat, cell_exprs, drug_finger,  gamma,
                  drug_hyper, cell_hyper,device="cpu"):
         super(hrlcdr, self).__init__()
-        
-        construct_adj_matrix = ConstructAdjMatrix(adj_mat, device=device)  
+
+        construct_adj_matrix = ConstructAdjMatrix(adj_mat, device=device)
         loadfeat = LoadFeature(cell_exprs, drug_finger, device=device)
         agg_cell_lp, agg_drug_lp, self_cell_lp, self_drug_lp = construct_adj_matrix()
         cell_feat,drug_feat = loadfeat()
         self.cexp = cell_feat
         self.figprint = drug_feat
-        
+
         self.ldd = nn.Linear(self.figprint.shape[1],2040,bias=True).to(device)
         self.lcc = nn.Linear(cell_exprs.shape[1],2040,bias=True).to(device)
 
@@ -159,28 +159,28 @@ class hrlcdr(nn.Module, ABC):
         self.bnd1 = nn.BatchNorm1d(2040)
         self.bnc1 = nn.BatchNorm1d(2040)
 
-    
+
     def forward(self):
 
         drug_x = self.bnd1(self.ldd(self.figprint))
         cell_emb_3_t = self.bnc1(self.lcc(self.cexp))
         cell_emb_3_t_out, drug_x_out = self.agg_h(cell_emb_3_t,drug_x)
-        output = self.decoder(cell_emb_3_t_out, drug_x_out)   
+        output = self.decoder(cell_emb_3_t_out, drug_x_out)
 
         return output
-    
+
 class hrlcdr_ic50(nn.Module, ABC):
     def __init__(self, adj_mat, cell_exprs, drug_finger,  gamma,
                  drug_hyper, cell_hyper,device="cpu"):
         super(hrlcdr_ic50, self).__init__()
-        
-        construct_adj_matrix = ConstructAdjMatrix(adj_mat, device=device)  
+
+        construct_adj_matrix = ConstructAdjMatrix(adj_mat, device=device)
         loadfeat = LoadFeature(cell_exprs, drug_finger, device=device)
         agg_cell_lp, agg_drug_lp, self_cell_lp, self_drug_lp = construct_adj_matrix()
         cell_feat,drug_feat = loadfeat()
         self.cexp = cell_feat
         self.figprint = drug_feat
-        
+
         self.ldd = nn.Linear(self.figprint.shape[1],2040,bias=True).to(device)
         self.lcc = nn.Linear(cell_exprs.shape[1],2040,bias=True).to(device)
         self.agg_h = Hyper_Agg(adj_mat=agg_cell_lp,adj_mat_T=agg_drug_lp,self_c=self_cell_lp,self_d=self_drug_lp,
@@ -189,20 +189,20 @@ class hrlcdr_ic50(nn.Module, ABC):
         self.bnd1 = nn.BatchNorm1d(2040)
         self.bnc1 = nn.BatchNorm1d(2040)
         self.decoder = GDecoder_regression(gamma=gamma)
-        
+
     def forward(self):
 
         drug_x = self.bnd1(self.ldd(self.figprint))
         cell_emb_3_t = self.bnc1(self.lcc(self.cexp))
         cell_emb_3_t_out, drug_x_out = self.agg_h(cell_emb_3_t,drug_x)
-        output = self.decoder(cell_emb_3_t_out, drug_x_out)   
+        output = self.decoder(cell_emb_3_t_out, drug_x_out)
 
         return output
 
 
 
 class Optimizer_mul(nn.Module):
-    def __init__(self, model,  train_ic50, test_ic50, train_data, test_data, test_mask, train_mask, 
+    def __init__(self, model,  train_ic50, test_ic50, train_data, test_data, test_mask, train_mask,
                  independ_data,ind_mask,ind_ic50,evaluate_fun,evluate_fun2,lr=0.01, wd=1e-05, epochs=200, test_freq=20, device="cpu"):
         super(Optimizer_mul, self).__init__()
         self.model = model.to(device)
@@ -213,11 +213,11 @@ class Optimizer_mul(nn.Module):
         self.test_data = test_data.to(device)
         self.train_mask = train_mask.to(device)
         self.test_mask = test_mask.to(device)
-        
+
         self.ind_ic50 = ind_ic50.to(device)
         self.ind_data = independ_data.to(device)
         self.ind_mask = ind_mask.to(device)
-        
+
         self.evaluate_fun = evaluate_fun
         self.evaluate_fun2 = evluate_fun2
         self.lr = lr
@@ -229,15 +229,15 @@ class Optimizer_mul(nn.Module):
 
     def forward(self):
         best_auc = 0
-        tole = 0          
-        
+        tole = 0
+
         true_data = torch.masked_select(self.test_data, self.test_mask)
         ind_true_data = torch.masked_select(self.ind_data, self.ind_mask)
 
         for epoch in torch.arange(self.epochs+1):
 
             predict_data= self.model()
-      
+
             loss = cross_entropy_loss(self.train_data, predict_data, self.train_mask)
             self.optimizer.zero_grad()
             loss.backward()
@@ -245,7 +245,7 @@ class Optimizer_mul(nn.Module):
 
             ind_data_masked = torch.masked_select(predict_data, self.ind_mask)
             predict_data_masked = torch.masked_select(predict_data, self.test_mask)
-            auc = self.evaluate_fun(true_data, predict_data_masked)        
+            auc = self.evaluate_fun(true_data, predict_data_masked)
 
             if auc > best_auc:
                 best_auc = auc
@@ -255,10 +255,10 @@ class Optimizer_mul(nn.Module):
                 tole = 0
             else:
                 tole +=1
-                
+
             if epoch % self.test_freq == 0:
                 print("epoch:%4d" % epoch.item(), "loss:%.6f" % loss.item(), "auc:%.4f" % auc,"ind_auc:%.4f" % ind_auc)
-        
+
         print("Fit finished.")
 
         return ind_auc,ind_aupr, ind_true_data, best_predict
@@ -267,8 +267,8 @@ class hrlcdr_new(nn.Module, ABC):
     def __init__(self, adj_mat, cell_exprs, drug_finger,  gamma,drug_hyper, cell_hyper,
                  device="cpu",alp=1,bet=1):
         super(hrlcdr_new, self).__init__()
-        
-        construct_adj_matrix = ConstructAdjMatrix(adj_mat, device=device)  
+
+        construct_adj_matrix = ConstructAdjMatrix(adj_mat, device=device)
         loadfeat = LoadFeature(cell_exprs, drug_finger, device=device)
         agg_cell_lp, agg_drug_lp, self_cell_lp, self_drug_lp = construct_adj_matrix()
         cell_feat,drug_feat = loadfeat()
@@ -296,9 +296,9 @@ class hrlcdr_new(nn.Module, ABC):
         cell_emb_3_t_out, drug_x_out = self.agg_h(cell_emb_3_t,drug_x)
         output = self.decoder(cell_emb_3_t_out, drug_x_out)
 
-                                         
+
         return output
-    
+
 class Optimizer_new(nn.Module):
     def __init__(self, model,  train_data, test_data, test_mask, train_mask,ind_data,ind_mask,
                  evaluate_fun, evaluate_fun2,
@@ -311,7 +311,7 @@ class Optimizer_new(nn.Module):
         self.test_data = test_data.to(device)
         self.train_mask = train_mask.to(device)
         self.test_mask = test_mask.to(device)
-        
+
         self.evaluate_fun = evaluate_fun
         self.evaluate_fun2 = evaluate_fun2
 
@@ -325,7 +325,7 @@ class Optimizer_new(nn.Module):
 
         self.ind_data = torch.from_numpy(ind_data).float().to(device)
         self.ind_mask = ind_mask.to(device)
-        
+
     def forward(self):
         best_auc = 0
         best_aupr = 0
@@ -333,12 +333,12 @@ class Optimizer_new(nn.Module):
         tol_auc = 0
         true_data = torch.masked_select(self.test_data, self.test_mask)
         train_da = torch.masked_select(self.ind_data, self.ind_mask)
-        
+
         for epoch in torch.arange(self.epochs + 1):
 
             predict_data= self.model()
             loss_binary = cross_entropy_loss(self.train_data, predict_data, self.train_mask)
-            loss =  loss_binary 
+            loss =  loss_binary
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -365,10 +365,10 @@ class Optimizer_new(nn.Module):
 
         print("Fit finished.")
         return best_auc, best_aupr, train_da, best_predict#true_data
-    
+
 
 class Optimizer_mul_ic50(nn.Module):
-    def __init__(self, model,  train_ic50, test_ic50, train_data, test_data, test_mask, train_mask, 
+    def __init__(self, model,  train_ic50, test_ic50, train_data, test_data, test_mask, train_mask,
                  independ_data,ind_mask,ind_ic50,
                  evaluate_fun,sc_score,rmse_score,
                  lr=0.01, wd=1e-05, epochs=200, test_freq=20, device="cpu"):
@@ -376,14 +376,14 @@ class Optimizer_mul_ic50(nn.Module):
         self.model = model.to(device)
 
         self.train_ic50= train_ic50.to(device)
-        
+
         self.test_ic50 = test_ic50.to(device)
         self.train_data = train_data.to(device)
-        
+
         self.test_data = test_data.to(device)
         self.train_mask = train_mask.to(device)
         self.test_mask = test_mask.to(device)
-        
+
         self.ind_ic50 = ind_ic50.to(device)
         self.ind_data = independ_data.to(device)
         self.ind_mask = ind_mask.to(device)
@@ -393,7 +393,7 @@ class Optimizer_mul_ic50(nn.Module):
         self.evaluate_rmse  = rmse_score
         self.lr = lr
         self.wd = wd
-        
+
         self.epochs = epochs
         self.test_freq = test_freq
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.wd)
@@ -406,7 +406,7 @@ class Optimizer_mul_ic50(nn.Module):
         ind_rmse =0
         tole = 0
         pcc = 0
-        
+
         true_data = torch.masked_select(self.test_ic50, self.test_mask)
         ind_true_data = torch.masked_select(self.ind_ic50, self.ind_mask)
 
@@ -418,7 +418,7 @@ class Optimizer_mul_ic50(nn.Module):
             self.optimizer.step()
             ind_data_masked = torch.masked_select(predict_data, self.ind_mask)
             predict_data_masked = torch.masked_select(predict_data, self.test_mask)
-            pcc = self.evaluate_fun2(true_data, predict_data_masked)        
+            pcc = self.evaluate_fun2(true_data, predict_data_masked)
 
             if pcc > best_pcc:
                 best_pcc = pcc
@@ -432,6 +432,6 @@ class Optimizer_mul_ic50(nn.Module):
 
             if epoch % self.test_freq == 0:
                 print("epoch:%4d" % epoch.item(), "loss:%.6f" % loss.item(), "pcc:%.4f" % pcc,"ind_pcc:%.4f" % ind_pcc)
-        
+
         print("Fit finished.")
         return ind_pcc,ind_scc,ind_rmse, ind_true_data, best_predict

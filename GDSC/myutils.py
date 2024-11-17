@@ -20,7 +20,7 @@ def update_Adjacency_matrix (A, test_samples):
             A_tep [int(test_samples[i,0]), int(test_samples[i,1])] = 0
     return A_tep
 
-def k_near_graph(sim: torch.Tensor, k: int):
+def k_near_graph(sim: torch.Tensor, k: int, device):
     """
     Calculate the k near graph as feature space adjacency.
     :param sim: similarity matrix, torch.Tensor
@@ -29,7 +29,7 @@ def k_near_graph(sim: torch.Tensor, k: int):
     """
     threshold = torch.min(torch.topk(sim, k=k, dim=1).values, dim=1).values.view([-1, 1])
     sim = torch.where(sim.ge(threshold), 1, torch.zeros_like(sim))
-    sim = sim - torch.eye(sim.shape[0]).to('cuda:0')
+    sim = sim - torch.eye(sim.shape[0]).to(device)
     return sim
 def hyper_graph(sima, guanlian, simb):
     a1 = torch.mm(sima,sima)
@@ -83,14 +83,14 @@ def init_seeds(seed=0):
     #os.environ['PYTHONHASHSEED'] = str(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    
+
 def distribute_compute(lr_list,wd_list,scale_list,layer_size,sigma_list,beta_list,workers:int,id:int):
     all_list = []
     for lr,wd,sc,la,sg,bt in it.product(lr_list,wd_list,scale_list,layer_size,sigma_list,beta_list):
         all_list.append([lr,wd,sc,la,sg,bt])
     list = np.array_split(all_list,workers)
     return list[id]
-        
+
 def get_fingerprint(x):
     """
     :param x: drug cid
@@ -338,7 +338,7 @@ def evaluate_regression(true_data: torch.Tensor, predict_data: torch.Tensor):
     sc = sc_score(true_data, predict_data)
     rmse = rmse_score(true_data, predict_data)
     return pcc, sc, rmse
-    
+
 def ap_score(true_data: torch.Tensor, predict_data: torch.Tensor):
     """
     area under the precision-recall curve
@@ -862,17 +862,17 @@ def calculate_gene_exponent_similarity7(x: torch.Tensor, mu: float):
 def gaussian_kernel_matrix(X, sigma=1):
     # 获取样本数量
     n_samples = X.shape[0]
-    
+
     # 初始化相似性矩阵
     similarity_matrix = np.zeros((n_samples, n_samples))
-    
+
     # 计算高斯核相似性
     for i in range(n_samples):
         for j in range(n_samples):
             x = X[i, :]
             y = X[j, :]
             similarity_matrix[i, j] = np.exp(-np.sum((x - y) ** 2) / (2 * sigma ** 2))
-    
+
     return similarity_matrix
 def generate_mask(row, column, mask_ratio):
     # 1 -- leave   0 -- drop
