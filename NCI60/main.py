@@ -61,7 +61,7 @@ sed = 100
 np.random.seed(sed)
 a = np.arange(pos_num)
 
-rand_n = round(pos_num/10)
+rand_n = round(pos_num / 10)
 
 b = np.random.choice(a, size=rand_n, replace=False)
 ind = np.zeros(pos_num, dtype=bool)
@@ -79,7 +79,7 @@ index = np.arange(all_data.shape[0])
 # c = np.random.choice(index, rand_n, replace=False)
 
 # This works for imbalance dataset.
-n_neg = int(np.floor((len(index)/10) * 9))
+n_neg = int(np.floor((len(index) / 10) * 9))
 c = np.random.choice(index, n_neg, replace=False)
 
 kfold = KFold(n_splits=k, shuffle=True, random_state=0)
