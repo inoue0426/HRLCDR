@@ -23,6 +23,7 @@ parser.add_argument(
 )
 parser.add_argument("--gamma", type=float, default=8.7, help="the scale for sigmod")
 parser.add_argument("--epochs", type=float, default=1000, help="the epochs for model")
+parser.add_argument("--num", type=int, default=1, help="the epochs for model")
 args = parser.parse_args()
 
 logging.basicConfig(format="%(message)s", filename="mylog.log", level=logging.INFO)
@@ -158,5 +159,7 @@ cv_set, test_set = save_dataset(sampler.test_mask, null_mask, res_binary)
 cv_set.to_csv("Data/5-fold_CV.csv", index=False)
 test_set.to_csv("Data/testset.csv", index=False)
 
-pd.DataFrame(true_datas).to_csv("result_data/true_data.csv")
-pd.DataFrame(predict_datas).to_csv("result_data/predict_data.csv")
+i = args.num
+
+pd.DataFrame(true_datas).to_csv(f"result_data_{i}/true_data.csv")
+pd.DataFrame(predict_datas).to_csv(f"result_data_{i}/predict_data.csv")
